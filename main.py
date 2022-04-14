@@ -4,21 +4,18 @@ import datetime
 import random 
 import time
 import discord
+import asyncio
 
 from pytz import timezone
 from replit import db
 from discord.ext import commands
-from threading import Timer
 from enum import Enum
 from Bot.constants import *
 from Bot.keep_alive import *
 from Bot.helper import *
 
-
 Gods = Enum('Gods', 'tonster12 pablo')
 bot = commands.Bot(command_prefix='>', case_insensitive=True)
-
-
 reddit = asyncpraw.Reddit(
     client_id=os.environ['client_id'],
     client_secret=os.environ['client_secret'],
@@ -29,7 +26,7 @@ reddit = asyncpraw.Reddit(
 async def on_ready():
   print('We have logged in as {0.user}'.format(bot))
   print_db("requests")
-  print_db("proof")
+  #print_db("proof")
 
 
 @bot.event
@@ -71,20 +68,24 @@ async def hoes(ctx):
 
 @bot.command(
   help="I call upon one of the gods! The one and only Tonster12 or The infamous Pablo will respond your call...",
-  brief="get a visit from one of the gods..."
+  brief="get a visit from one of the gods...",
+  alias=['worship']
 )
 async def pray(ctx):
   roll = random.randint(1, 3)
   await ctx.send("Sending your prayers....")
   time.sleep(2)
-  
+
+  if roll < 3:
+    await ctx.send("Looks like a God is hearing your prayers! BEHOLD THE PRESENCE OF GOD!")
+
   if roll == Gods.tonster12.value:
     await ctx.send(images["tonster12"])
   elif roll == Gods.pablo.value:
     await ctx.send(images["pablo"+str(random.randint(1, 4))])
   else:
-    await ctx.send("No god responded to your prayers... You are not worthy!")
-
+    await ctx.send("No God has answered your prayers... You are not worthy!")
+  
 
 @bot.command(
   help="I compliment you or a user you tag <3",
@@ -92,16 +93,15 @@ async def pray(ctx):
   aliases=['tell', 'comp']
 )
 async def compliment(ctx, user: discord.User):
-    if user:
-      await ctx.send(user.mention + "\t" + random.choice(emojis) + "\t" +get_quote())
-    else:
-      await ctx.send(random.choice(emojis) + "\t" +get_quote())
+  await ctx.send(user.mention + "\t" + random.choice(emojis) + "\t" +get_quote())
 
 @compliment.error
 async def compliment_error(ctx, error):
     if isinstance(error, commands.BadArgument):
         await ctx.send('I could not find that member...')
-
+    if isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send(random.choice(emojis) + "\t" +get_quote())
+    
 
 @bot.command(
   help="I let you know if it is wednesday, my dudes",
@@ -138,6 +138,11 @@ async def ban(ctx, name):
   else:
     await ctx.send(name + " can't be banned. Only paul is allowed to be banned!")
 
+@ban.error
+async def ban_error(ctx, error):
+  if isinstance(error, commands.MissingRequiredArgument):
+      await ctx.send('Who are you trying to ban? Please tell me tell me tell me!')
+
 
 @bot.command(
   help="I pick and send a random meme from the dndmemes subreddit",
@@ -162,13 +167,25 @@ async def meme(ctx):
 async def roll(ctx, *args):
   # Role: role any number of x-sided dice
   # EX: 2d20 = 2 - 20 sided dice
-    for i in args:
-      num = int(i.split('d')[0])
-      max = int(i.split('d')[1])
+  
+  if len(args) < 1:
+    await ctx.send("I need to know how many dice you want to roll!")
+    return 
+    
+  for i in args:
+    num = int(i.split('d')[0])
+    max = int(i.split('d')[1])
 
-      for j in range(num):
-        await ctx.send(random.randint(1, max))
+    for j in range(num):
+      await ctx.send(random.randint(1, max))
         
+@roll.error
+async def roll_error(ctx, error):
+  if isinstance(error, commands.MissingRequiredArgument):
+    await ctx.send("What kind of dice are you trying to roll? Tell me tell me tell me!")
+  if isinstance(error, commands.BadArgument):
+    await ctx.send("Thats a strange dice you are having me roll! Thats beyond my power!")
+
 
 @bot.command(
   help="I count down from 10, at the end everyone drinking must take a shot!",
@@ -191,11 +208,19 @@ async def shots(ctx):
   brief="4loko someone",
   aliases=['4loko']
 )
-async def floko(ctx):
-    await ctx.send("you have been four lokoed!!")
+async def floko(ctx, user: discord.User):
+    await ctx.send(user.mention + " has been four lokoed!!")
     await ctx.send(images["loko" + str(random.randint(1, 9))])
     await ctx.send(videos["4loko"])
 
+@floko.error
+async def floko_error(ctx, error):
+  if isinstance(error, commands.BadArgument): 
+    await ctx.send('Im not sure who you are trying to 4loko... Tell me tell me tell me!')
+
+  if isinstance(error, commands.MissingRequiredArgument):
+    await ctx.send('You 4lokoed yourself!')
+    await floko(ctx, ctx.author)
 
 @bot.command(
   help="Callout someone for game of life! They target must provide proof within a minute!",
@@ -210,20 +235,31 @@ async def gameoflife(ctx, user: discord.User):
     db["proof"][user.name] = False
   else:
     db["proof"] = { user.name : False }
+
+  await asyncio.sleep(60)
   
-  r = Timer(60.0, timeout, (ctx, user))
-  r.start()
+  if db["proof"][user.name]:
+    await ctx.send(ctx.author.mention + " looks like you fucked up! NOW DOWN YOUR DRINK!")
+  else:
+    await ctx.send(user.mention + " looks like you didnt provide proof... NOW DOWN YOUR DRINK!")
   
 @gameoflife.error
-async def compliment_error(ctx, error):
+async def gameoflife_error(ctx, error):
     if isinstance(error, commands.BadArgument):
         await ctx.send('I could not find that member...')
+    if isinstance(error, commands.MissingRequiredArgument):
+      await ctx.send("You didnt tell me who to challenge! Oh tell me tell me tell me!")
+
 
 @bot.command(
   help="I send the crap guide to dnd video of the provided class!",
   brief="Want some information on the provided dnd class?"
 )
 async def dnd(ctx, *args):
+  if len(args) < 1:
+    await ctx.send("I need to know what class to look for!")
+    return 
+    
   for i in args:
     i = i.lower()
     if i == 'barb':
@@ -243,13 +279,20 @@ async def dnd(ctx, *args):
     else:
       await ctx.send("I dont know that class!")
 
+@dnd.error
+async def dnd_error(ctx, error):
+  if isinstance(error, commands.BadArgument):
+    await ctx.send('I could not find that class...')
+  if isinstance(error, commands.MissingRequiredArgument):
+    await ctx.send("You didnt tell me a class! Oh tell me tell me tell me!")
+
 
 @bot.command(
   help="I send a giant f to pay respects composed of random emojis",
   brief="Press f to send respects",
-  alias=["f"]
+  alias=['f']
 )
-async def respect(ctx, *args):
+async def respect(ctx):
   emoji = "🟥"
   temp = ""
   for i in range(5):
@@ -314,8 +357,25 @@ async def request(ctx, *args):
     
   else:
     await ctx.send("I need more information! Tell me your requested command in more detail!")
-    await ctx.send("Oh tell me tell me tell me!")
-    await ctx.send("format: >request [command name] [details]")
+
+@request.error
+async def request_error(ctx, error):
+    if isinstance(error, commands.BadArgument):
+      await ctx.send('I cant understand this command!')
+    if isinstance(error, commands.MissingRequiredArgument):
+      await ctx.send("I need more information! Tell me your requested command in more detail!")
+      await ctx.send("Oh tell me tell me tell me!")
+      await ctx.send("format: >request [command name] [details]")
+
+
+@bot.event
+async def on_command_error(ctx, error):
+  if isinstance(error, commands.CommandNotFound):
+    await ctx.send("Looks like I dont know that command!")
+    await ctx.send("Type >help to get a list of my commands")
+    await ctx.send("Or do you want me to learn this command? Oh yes I take feedback oh yes oh yes oh yes!")
+    await ctx.send("Type >help request for more information!")
+
 
 @bot.event
 async def on_message(message):
@@ -323,9 +383,11 @@ async def on_message(message):
   #  If message is a Bot/non-prefixed ignore it
   if message.author == bot.user:
     return
-  
-  if len(message.attachments) > 0 and "proof" in db.keys() and message.author in db["proof"]:
-    db["proof"][message.author] = True
+    
+  # check for the game of life command
+  name = message.author.name
+  if len(message.attachments) > 0 and "proof" in db.keys() and name in db["proof"]:
+    db["proof"][name] = True
 
   await bot.process_commands(message)
     
