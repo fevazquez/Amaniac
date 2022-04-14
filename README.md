@@ -17,25 +17,15 @@
 <!-- About the Project -->
 ## :star2: About the Project
 
-<!-- TechStack -->
-### :space_invader: Tech Stack
 
-<details>
-  <summary>Client</summary>
-  <ul>
-    <li><a href="https://reactjs.org/">React.js</a></li>
-  </ul>
-</details>
+<!-- Env Variables -->
+### :key: Environment Variables
 
-<details>
-  <summary>Server</summary>
-  <ul>
-    <li><a href="https://discordpy.readthedocs.io/en/stable/">Discord.py</a></li>
-    <li><a href="https://asyncpraw.readthedocs.io/en/stable/">Async PRAW</a></li>
-  </ul>
-</details>
+To run this project, you will need to add the following environment variables to your .env file
 
-<details>
-<summary>Database</summary>
-  <a href="https://docs.replit.com/hosting/database-faq">zreplit DB</a></li>
-</details>
+`client_id`
+
+`client_secret`
+
+These two values are needed to access Reddit’s API as a script application. If you don’t already have a client ID and client secret, follow Reddit’s <a href="https://github.com/reddit-archive/reddit/wiki/OAuth2-Quick-Start-Example#first-steps">First Steps Guide</a> to create them.
+
