@@ -1,18 +1,23 @@
 import os
 import asyncpraw
-import discord
-import requests
-import json
-import random
-import time
 import datetime
+import random 
+import time
+import discord
+
 from pytz import timezone
 from replit import db
+from discord.ext import commands
+from threading import Timer
+from enum import Enum
 from Bot.constants import *
 from Bot.keep_alive import *
 from Bot.helper import *
 
-client = discord.Client()
+
+Gods = Enum('Gods', 'tonster12 pablo')
+bot = commands.Bot(command_prefix='>', case_insensitive=True)
+
 
 reddit = asyncpraw.Reddit(
     client_id=os.environ['client_id'],
@@ -20,207 +25,320 @@ reddit = asyncpraw.Reddit(
     user_agent = "pythonpraw",
 )
 
-
-@client.event
+@bot.event
 async def on_ready():
-  print('We have logged in as {0.user}'.format(client))
+  print('We have logged in as {0.user}'.format(bot))
   print_db("requests")
+  print_db("proof")
 
 
-@client.event
-async def on_message(message):
-
-  #  If message is a Bot/non-prefixed ignore it, else split into single "command" & array of args.
-  if message.author == client.user or not message.content.startswith('>'):
-    return
-
-  channel = message.channel
-  command = message.content.split()[0].lower()[1:]
-  args = [i.lower() for i in message.content.split() if not i.startswith('>')]
-
-  # Send function makes it so we write less repetitive code.
-  async def send(msg):
-      await channel.send(msg)
-
-  if command not in commands:
-    await send("type >help to see my commands")
-    return
-
-  # Ver: Displays the latest version number along with the latest patch note
-  if command == 'ver':
-    patch_notes = ['This is my current version: 1.0', '1.0: The full release of the Amaniac Bot!'];
-    for i in patch_notes:
-      await send(i)
+@bot.event
+async def on_member_join(member):
+  await member.create_dm()
+  await member.dm_channel.send(
+      f'Hi {member.name}, you just made the worst decision of your life joining this server!'
+  )
   
-  # Help: Provides the Users with documentation on all the commands the bot
-  # can do specific help on certain commands. 
-  if command == 'help':
-    await send("check your dms ;)")
-    await message.author.send(help) 
 
-  if command == 'hoes':
-    await send("Where the hoes at?")
+@bot.command(
+  help="I send the latest version and patch notes",
+	brief="Developer information",
+  aliases=['ver']
+)
+async def version(ctx):
+  for i in patch_notes:
+    await ctx.send(i)
 
-  if command == 'tonster12':
-    await send(images["tonster12"])
+
+@bot.command(
+  help="Sends the crap guide to dnd races video, aka the best music video ever!",
+	brief="Sends the races video to the channel."
+)
+async def races(ctx):
+  await ctx.send(images["races"])
+  await ctx.send(videos["races"])
+
   
-  if command == 'quote':
-    await send(random.choice(emojis) + "\t" +get_quote())
+@bot.command(
+  help="Im looking for them, let me know where they at tho",
+	brief="Where the hoes at?",
+  aliases=['woes']
+)
+async def hoes(ctx):
+  await ctx.send("Where the hoes at?")
+  await ctx.send(images["hoes"])
 
-  if command == 'f' or command == 'respects':
-    emoji = "🟥"
 
-    temp = ""
-    for i in range(5):
-      temp += emoji + "\t"
-    await send(temp)
-    temp = ""
-    await send(emoji)
-    for i in range(5):
-      temp += emoji + "\t"
-    await send(temp)
-    for i in range(3):
-      await send(emoji)
+@bot.command(
+  help="I call upon one of the gods! The one and only Tonster12 or The infamous Pablo will respond your call...",
+  brief="get a visit from one of the gods..."
+)
+async def pray(ctx):
+  roll = random.randint(1, 3)
+  await ctx.send("Sending your prayers....")
+  time.sleep(2)
   
-  # Wednesday: If it is Wednesday, post "the" vine, else post it's not Wed.
-  if command == 'wednesday' or command == 'wed':
-    date = datetime.datetime.now() 
-    date = date.astimezone(timezone('US/Pacific'))
-    
-    # it is wednesday
-    if date.isoweekday() == 3:
-      await send("It IS Wednesday my doods.")
-      await send(images["wednesday"])
-    elif date.isoweekday() == 4:
-      await send(images["late_wed"])
+  if roll == Gods.tonster12.value:
+    await ctx.send(images["tonster12"])
+  elif roll == Gods.pablo.value:
+    await ctx.send(images["pablo"+str(random.randint(1, 4))])
+  else:
+    await ctx.send("No god responded to your prayers... You are not worthy!")
+
+
+@bot.command(
+  help="I compliment you or a user you tag <3",
+  brief="come and find out...",
+  aliases=['tell', 'comp']
+)
+async def compliment(ctx, user: discord.User):
+    if user:
+      await ctx.send(user.mention + "\t" + random.choice(emojis) + "\t" +get_quote())
     else:
-      await send("It is NOT Wednesday my doods.")
+      await ctx.send(random.choice(emojis) + "\t" +get_quote())
 
-  # Races: Sends the dnd races song video
-  if command == 'races':
-    await send(images["races"])
-    await send(videos["races"])
+@compliment.error
+async def compliment_error(ctx, error):
+    if isinstance(error, commands.BadArgument):
+        await ctx.send('I could not find that member...')
 
-  # dnd: Sends the crap guide of the asked class
-  if command == 'dnd':
-    for i in args:
-      i = i.lower()
-      if i == 'barb':
-        await send(videos['barbarian'])
-      elif i == 'wiz':
-        await send(videos['wizard'])
-      elif i == 'war':
-        await send(videos['warlock'])
-      elif i == 'pal':
-        await send(videos['paladin'])
-      elif i == 'sorc':
-        await send(videos['sorcerer'])
-      elif i == 'art':
-        await send(videos['artificer'])
-      elif i in videos:
-        await send(videos[i])
-      else:
-        await send("I dont know that class!")
-    
-  # Cory: Sends Cory in the house anime intro
-  if command == 'cory' or command == 'kory':
-    await send(videos["cory"])
 
-  # 4loko: Sends 4loko 
-  if command == '4loko':
-    await send("you have been four lokoed!!")
-    await send(images["loko" + str(random.randint(1, 9))])
-    await send(videos["4loko"])
-
-  # Pablo: Sends an image of Pablo!
-  if command == 'pablo':
-    await send(images["pablo"+str(random.randint(1, 4))])
-
-  # Suprise: Sends random picture from the group/individual
-  if command == 'surprise':
-    target = random.randint(1, 4)
-
-    if target == 1:
-      await send(images["colin"+str(random.randint(1, 2))])
-    elif target == 2:
-      await send(images["warren"+str(random.randint(1, 3))])
-    elif target == 3:
-      await send(images["paul"])
-    else:
-      await send(images["group"+str(random.randint(1, 8))])
-
-  # Meme: Sends random meme from the dndmemes subreddit
-  if command == 'meme':
-    subreddit = await reddit.subreddit("dndmemes")
-    hot = subreddit.hot(limit=50)
-    subs = []
-
-    async for submission in hot:
-      subs.append(submission)
-
-    random_sub = random.choice(subs)
-    
-    await send(random_sub.url)
+@bot.command(
+  help="I let you know if it is wednesday, my dudes",
+	brief="Is it Wednesday?",
+  aliases=['wed']
+)
+async def wednesday(ctx):
+  date = datetime.datetime.now() 
+  date = date.astimezone(timezone('US/Pacific'))
   
-  # Shots: time to take shots!
-  if command == 'shots':
-    await send("get ready to TAKE SHOTS!")
-    
-    for i in reversed(range(1, 11)):
-      await send(i)
-      time.sleep(1)
-      
-    await send(images["shots"])
-    time.sleep(2)
-    await send(images["party_parrots"])
-    
+  # it is wednesday
+  if date.isoweekday() == 3:
+    await ctx.send("It IS Wednesday my doods.")
+    await ctx.send(images["wednesday"])
+  # it is thursday
+  elif date.isoweekday() == 4:
+    await ctx.send(images["late_wed"])
+  # every other day
+  else:
+    await ctx.send("It is NOT Wednesday my doods.")
 
+
+@bot.command(
+  help="We ban Paul from the server! I will display the amount of times he has been banned",
+	brief="Ban Paul"
+)
+async def ban(ctx, name):
+  if name == "paul" and "counter" in db.keys():
+    db["counter"] = str(int(db["counter"]) + 1);
+    await ctx.send(name + " has been banned. He has been banned " + db["counter"] + " times!")
+  elif name == "paul":
+    db["counter"] = "1";
+    await ctx.send(name + " has been banned.")
+  else:
+    await ctx.send(name + " can't be banned. Only paul is allowed to be banned!")
+
+
+@bot.command(
+  help="I pick and send a random meme from the dndmemes subreddit",
+	brief="I send dnd Meme"
+)
+async def meme(ctx):
+  subreddit = await reddit.subreddit("dndmemes")
+  hot = subreddit.hot(limit=50)
+  subs = []
+
+  async for submission in hot:
+    subs.append(submission)
+
+  random_sub = random.choice(subs)
+  await ctx.send(random_sub.url)
+
+
+@bot.command(
+  help="I role any number of x sided dice", 
+  brief="I role dice!"
+)
+async def roll(ctx, *args):
   # Role: role any number of x-sided dice
   # EX: 2d20 = 2 - 20 sided dice
-  if command == "role":
     for i in args:
       num = int(i.split('d')[0])
       max = int(i.split('d')[1])
 
       for j in range(num):
-        await send(random.randint(1, max))
-    
-    
-  # Ban: bans paul
-  if command == 'ban':
-    name = args[0]
-    if name == "paul" and "counter" in db.keys():
-      db["counter"] = str(int(db["counter"]) + 1);
-      await send(name + " has been banned. He has been banned " + db["counter"] + " times!")
-    elif name == "paul":
-      db["counter"] = "1";
-      await send(name + " has been banned.")
-    else:
-      await send(name + " can't be banned. Only paul is allowed to be banned!")
+        await ctx.send(random.randint(1, max))
+        
 
+@bot.command(
+  help="I count down from 10, at the end everyone drinking must take a shot!",
+  brief="Shots o clock!"
+)
+async def shots(ctx):
+  await ctx.send("get ready to TAKE SHOTS!")
+  
+  for i in reversed(range(1, 11)):
+    await ctx.send(i)
+    time.sleep(1)
+    
+  await ctx.send(images["shots"])
+  time.sleep(2)
+  await ctx.send(images["party_parrots"])
+
+
+@bot.command(
+  help="A user gets 4lokoed!",
+  brief="4loko someone",
+  aliases=['4loko']
+)
+async def floko(ctx):
+    await ctx.send("you have been four lokoed!!")
+    await ctx.send(images["loko" + str(random.randint(1, 9))])
+    await ctx.send(videos["4loko"])
+
+
+@bot.command(
+  help="Callout someone for game of life! They target must provide proof within a minute!",
+  brief="Call game of life on a player that is drinking",
+  aliases=['gol']
+)
+async def gameoflife(ctx, user: discord.User):
+  await ctx.send(ctx.author.mention + " calls game of life on " + user.mention + "‼️")
+  await ctx.send(user.name + " has 1 minute to provide proof or has to down their drink!")
+
+  if "proof" in db.keys():
+    db["proof"][user.name] = False
+  else:
+    db["proof"] = { user.name : False }
+  
+  r = Timer(60.0, timeout, (ctx, user))
+  r.start()
+  
+@gameoflife.error
+async def compliment_error(ctx, error):
+    if isinstance(error, commands.BadArgument):
+        await ctx.send('I could not find that member...')
+
+@bot.command(
+  help="I send the crap guide to dnd video of the provided class!",
+  brief="Want some information on the provided dnd class?"
+)
+async def dnd(ctx, *args):
+  for i in args:
+    i = i.lower()
+    if i == 'barb':
+      await ctx.send(videos['barbarian'])
+    elif i == 'wiz':
+      await ctx.send(videos['wizard'])
+    elif i == 'war':
+      await ctx.send(videos['warlock'])
+    elif i == 'pal':
+      await ctx.send(videos['paladin'])
+    elif i == 'sorc':
+      await ctx.send(videos['sorcerer'])
+    elif i == 'art':
+      await ctx.send(videos['artificer'])
+    elif i in videos:
+      await ctx.send(videos[i])
+    else:
+      await ctx.send("I dont know that class!")
+
+
+@bot.command(
+  help="I send a giant f to pay respects composed of random emojis",
+  brief="Press f to send respects",
+  alias=["f"]
+)
+async def respect(ctx, *args):
+  emoji = "🟥"
+  temp = ""
+  for i in range(5):
+    temp += emoji + "\t"
+    
+  await ctx.send(temp)
+  temp = ""
+  await ctx.send(emoji)
+  for i in range(5):
+    temp += emoji + "\t"
+    
+  await ctx.send(temp)
+  for i in range(3):
+    await ctx.send(emoji)
+    
+  
+@bot.command(
+  help="I send a random picture of the crew!",
+  brief="A surprise awaits!",
+  aliases=['surp']
+)
+async def surprise(ctx):
+  # Suprise: Sends random picture from the group/individual
+  target = random.randint(1, 4)
+
+  if target == 1:
+    await ctx.send(images["colin"+str(random.randint(1, 2))])
+  elif target == 2:
+    await ctx.send(images["warren"+str(random.randint(1, 3))])
+  elif target == 3:
+    await ctx.send(images["paul"])
+  else:
+    await ctx.send(images["group"+str(random.randint(1, 8))])
+
+
+@bot.command(
+  help="I store requested commands to learn! I will consider said command oh yes I will I will I will!",
+	brief="Want me to learn a command?",
+  aliases=['req']
+)
+async def request(ctx, *args):
   # Request: I store requested commands to learn!
-  if command == 'request':
-    if len(args) > 1:
-      com = args[0]
-      details = args[1]
-      
-      if "requests" in db.keys():
-        if any(i for i in db["requests"] if com == i[0]):
-          await send("I am already considering the " + com + " command!")
-          return
-            
-        db["requests"].append((com, details))
+  if len(args) > 1:
+    com = args[0]
 
-      else:
-        db["requests"] = [(com, details)]
-
-      await send("I will make note of that! Oh yes I will I will I will!!!!")
-      
-    else:
-      await send("I need more information! Tell me your requested command in more detail!")
-      await send("Oh tell me tell me tell me!")
-      await send("format: >request [command name] [details]")
-
+    # append all the details into a single streing to store
+    details = ""
+    for i in args[1:]: 
+      details += i + " "
     
+    if "requests" in db.keys():
+      if any(i for i in db["requests"] if com == i[0]):
+        await ctx.send("I am already considering the " + com + " command!")
+        return
+          
+      db["requests"].append([com, details])
+
+    else:
+      db["requests"] = [[com, details]]
+
+    await ctx.send("I will make note of that! Oh yes I will I will I will!!!!")
+    
+  else:
+    await ctx.send("I need more information! Tell me your requested command in more detail!")
+    await ctx.send("Oh tell me tell me tell me!")
+    await ctx.send("format: >request [command name] [details]")
+
+@bot.event
+async def on_message(message):
+
+  #  If message is a Bot/non-prefixed ignore it
+  if message.author == bot.user:
+    return
+  
+  if len(message.attachments) > 0 and "proof" in db.keys() and message.author in db["proof"]:
+    db["proof"][message.author] = True
+
+  await bot.process_commands(message)
+    
+  # Help: Provides the Users with documentation on all the commands the bot
+  # can do specific help on certain commands. 
+  # if command == 'help':
+  #   await send("check your dms ;)")
+  #   await message.author.send(help) 
+  
+  # # Cory: Sends Cory in the house anime intro
+  # if command == 'cory' or command == 'kory':
+  #   await send(videos["cory"])
+
+
 keep_alive()
-client.run(os.environ['TOKEN'])
+bot.run(os.environ['TOKEN'])
