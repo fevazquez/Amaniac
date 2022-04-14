@@ -290,7 +290,7 @@ async def dnd_error(ctx, error):
 @bot.command(
   help="I send a giant f to pay respects composed of random emojis",
   brief="Press f to send respects",
-  alias=['f']
+  aliases=['f']
 )
 async def respect(ctx):
   emoji = "🟥"
